@@ -125,6 +125,11 @@ npm run dev
 - **HuggingFace API**：获取多模态模型信息
 - **去重机制**：避免重复项目
 
+### 新闻数据
+- **RSS 订阅源**：集成多个 AI 领域的 RSS 源，包括机器学习周刊、技术媒体、研究机构等
+- **关键词过滤**：基于 VLM/VLA 相关关键词自动筛选相关新闻
+- **多语言支持**：包含中文和英文新闻源
+
 ## 开发指南
 
 ### 添加新的数据源
@@ -139,14 +144,14 @@ npm run dev
 
 ```python
 # 论文分类示例
-title_lower = title.lower()  # title 是论文标题
+title_lower = paper_title.lower()  # paper_title 是论文标题变量
 if any(kw in title_lower for kw in ['vla', 'robot', 'action', 'embodied', 'agent']):
     category = "VLA"
 elif any(kw in title_lower for kw in ['vision', 'visual', 'multimodal', 'image']):
     category = "VLM"
 
 # 项目分类示例
-name_lower = name.lower()  # name 是项目名称
+name_lower = project_name.lower()  # project_name 是项目名称变量
 if any(keyword in name_lower for keyword in ['vla', 'robot', 'action', 'embodied', 'agent']):
     category = "VLA"
 ```

@@ -123,12 +123,41 @@ async def fetch_news() -> List[News]:
     news_items = []
     
     try:
-        # 使用 RSS 订阅源获取 AI 领域新闻
+        # 使用多个 RSS 订阅源获取 AI 领域新闻
         rss_urls = [
+            # 机器学习和 AI 综合新闻
             "https://feeds.feedburner.com/MachineLearningWeekly",
             "https://feeds.feedburner.com/ImportBlog",
             "https://feeds.feedburner.com/TowardsDataScience",
-            "https://feeds.feedburner.com/AnalyticsVidhya"
+            "https://feeds.feedburner.com/AnalyticsVidhya",
+            
+            # OpenAI 和 DeepMind 新闻
+            "https://openai.com/blog/rss/",
+            "https://deepmind.com/blog/rss.xml",
+            
+            # AI 研究机构新闻
+            "https://ai.facebook.com/rss/",
+            "https://ai.googleblog.com/feeds/posts/default",
+            
+            # 技术媒体 AI 频道
+            "https://techcrunch.com/feed/",
+            "https://www.theverge.com/rss/index.xml",
+            "https://www.wired.com/feed/rss",
+            
+            # 学术会议和期刊
+            "https://arxiv.org/rss/cs.CV",
+            "https://arxiv.org/rss/cs.CL",
+            "https://arxiv.org/rss/cs.AI",
+            
+            # AI 新闻聚合
+            "https://feeds.feedburner.com/MachineLearningMastery",
+            "https://feeds.feedburner.com/oreilly/radar",
+            "https://feeds.feedburner.com/NextBigFuture",
+            
+            # 中文 AI 新闻源
+            "https://www.leiphone.com/feed",
+            "https://www.jiqizhixin.com/feed",
+            "https://www.ainews.com.cn/feed"
         ]
         
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -148,8 +177,22 @@ async def fetch_news() -> List[News]:
                             title_lower = title.lower()
                             desc_lower = description_text.lower()
                             
-                            vlm_keywords = ['vision', 'visual', 'multimodal', 'image', 'video', 'vision-language']
-                            vla_keywords = ['robot', 'action', 'embodied', 'agent', 'manipulation', 'control']
+                            # VLM 相关关键词
+                            vlm_keywords = [
+                                'vision', 'visual', 'multimodal', 'image', 'video', 'vision-language',
+                                'vision-language model', 'vlm', 'image understanding', 'visual understanding',
+                                'image captioning', 'visual question answering', 'vqa', 'image-text',
+                                'cross-modal', 'vision transformer', 'vit', 'clip', 'blip', 'llava'
+                            ]
+                            
+                            # VLA 相关关键词
+                            vla_keywords = [
+                                'robot', 'action', 'embodied', 'agent', 'manipulation', 'control',
+                                'robotic', 'robotics', 'robot learning', 'robotic manipulation',
+                                'embodied ai', 'embodied intelligence', 'robotic agent', 'robotic control',
+                                'robotic action', 'robotic vision', 'robotic learning', 'robotic manipulation',
+                                'robotic control', 'robotic action', 'robotic vision', 'robotic learning'
+                            ]
                             
                             is_vlm = any(kw in title_lower or kw in desc_lower for kw in vlm_keywords)
                             is_vla = any(kw in title_lower or kw in desc_lower for kw in vla_keywords)
