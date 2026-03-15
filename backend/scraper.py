@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from typing import List
 from datetime import datetime
 from models import Paper, Project, News
+from news_fetcher import fetch_news as fetch_news_async
 
 # ArXiv API (no key needed)
 ARXIV_VLM_URL = "https://export.arxiv.org/api/query?search_query=cat:cs.CV+OR+cat:cs.CL+OR+cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=30"
@@ -119,104 +120,15 @@ async def fetch_huggingface_models() -> List[Project]:
 
 
 async def fetch_news() -> List[News]:
-    """获取VLM/VLA相关新闻"""
-    news_items = []
-    
+    """获取VLM/VLA相关新闻 - 使用优化的news_fetcher"""
     try:
-        # 使用多个 RSS 订阅源获取 AI 领域新闻
-        rss_urls = [
-            # 机器学习和 AI 综合新闻
-            "https://feeds.feedburner.com/MachineLearningWeekly",
-            "https://feeds.feedburner.com/ImportBlog",
-            "https://feeds.feedburner.com/TowardsDataScience",
-            "https://feeds.feedburner.com/AnalyticsVidhya",
-            
-            # OpenAI 和 DeepMind 新闻
-            "https://openai.com/blog/rss/",
-            "https://deepmind.com/blog/rss.xml",
-            
-            # AI 研究机构新闻
-            "https://ai.facebook.com/rss/",
-            "https://ai.googleblog.com/feeds/posts/default",
-            
-            # 技术媒体 AI 频道
-            "https://techcrunch.com/feed/",
-            "https://www.theverge.com/rss/index.xml",
-            "https://www.wired.com/feed/rss",
-            
-            # 学术会议和期刊
-            "https://arxiv.org/rss/cs.CV",
-            "https://arxiv.org/rss/cs.CL",
-            "https://arxiv.org/rss/cs.AI",
-            
-            # AI 新闻聚合
-            "https://feeds.feedburner.com/MachineLearningMastery",
-            "https://feeds.feedburner.com/oreilly/radar",
-            "https://feeds.feedburner.com/NextBigFuture",
-            
-            # 中文 AI 新闻源
-            "https://www.leiphone.com/feed",
-            "https://www.jiqizhixin.com/feed",
-            "https://www.ainews.com.cn/feed"
-        ]
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for rss_url in rss_urls:
-                try:
-                    response = await client.get(rss_url)
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.text, 'xml')
-                        
-                        # 解析 RSS 项
-                        for item in soup.find_all('item')[:5]:
-                            title = item.find('title').text.strip()
-                            description = item.find('description')
-                            description_text = description.text.strip() if description else ""
-                            
-                            # 过滤 VLM/VLA 相关新闻
-                            title_lower = title.lower()
-                            desc_lower = description_text.lower()
-                            
-                            # VLM 相关关键词
-                            vlm_keywords = [
-                                'vision', 'visual', 'multimodal', 'image', 'video', 'vision-language',
-                                'vision-language model', 'vlm', 'image understanding', 'visual understanding',
-                                'image captioning', 'visual question answering', 'vqa', 'image-text',
-                                'cross-modal', 'vision transformer', 'vit', 'clip', 'blip', 'llava'
-                            ]
-                            
-                            # VLA 相关关键词
-                            vla_keywords = [
-                                'robot', 'action', 'embodied', 'agent', 'manipulation', 'control',
-                                'robotic', 'robotics', 'robot learning', 'robotic manipulation',
-                                'embodied ai', 'embodied intelligence', 'robotic agent', 'robotic control',
-                                'robotic action', 'robotic vision', 'robotic learning', 'robotic manipulation',
-                                'robotic control', 'robotic action', 'robotic vision', 'robotic learning'
-                            ]
-                            
-                            is_vlm = any(kw in title_lower or kw in desc_lower for kw in vlm_keywords)
-                            is_vla = any(kw in title_lower or kw in desc_lower for kw in vla_keywords)
-                            
-                            if is_vlm or is_vla:
-                                category = "VLA" if is_vla else "VLM"
-                                
-                                news_items.append(News(
-                                    title=title,
-                                    content=description_text[:300],
-                                    url=item.find('link').text.strip(),
-                                    source=rss_url.split('/')[-1],
-                                    published_date=item.find('pubDate').text[:10] if item.find('pubDate') else None,
-                                    category=category
-                                ))
-                except Exception as e:
-                    print(f"Error fetching RSS {rss_url}: {e}")
-                    continue
-                    
+        # 使用优化的新闻获取器
+        news_items = await fetch_news_async(max_news=10)
+        return news_items
     except Exception as e:
-        print(f"Error fetching news: {e}")
-    
-    # 添加一些示例新闻作为备选
-    if not news_items:
+        print(f"Error using news_fetcher: {e}")
+        
+        # 备用方案：返回示例新闻
         example_news = [
             News(
                 title="OpenAI 发布新一代多模态模型",
@@ -235,9 +147,7 @@ async def fetch_news() -> List[News]:
                 category="VLA"
             )
         ]
-        news_items.extend(example_news)
-    
-    return news_items[:10]  # 返回最多10条新闻
+        return example_news
 
 
 # 手动更新所有数据

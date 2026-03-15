@@ -4,8 +4,10 @@ from datetime import datetime
 from bson import ObjectId
 import json
 
+from news_fetcher import fetch_news
 from models import Paper, Project, News
-from scraper import fetch_all_data, fetch_arxiv_papers, fetch_github_projects, fetch_huggingface_models, fetch_news
+from scraper import fetch_all_data, fetch_arxiv_papers, fetch_github_projects, fetch_huggingface_models
+from news_fetcher import fetch_news as fetch_news_async
 
 router = APIRouter()
 
@@ -95,10 +97,23 @@ async def refresh_news(db):
     """手动刷新新闻数据"""
     await db.news.delete_many({})
     
-    news_items = await fetch_news()
+    # 使用优化的新闻获取器
+    news_items = await fetch_news_async(max_news=10)
     
     if news_items:
-        news_data = [n.model_dump() for n in news_items]
+        # 将 News 对象转换为字典格式
+        news_data = []
+        for n in news_items:
+            news_data.append({
+                "title": n.title,
+                "content": n.content,
+                "url": n.url,
+                "source": n.source,
+                "published_date": n.published_date,
+                "category": n.category,
+                "relevance_score": n.relevance_score,
+                "created_at": datetime.now()
+            })
         await db.news.insert_many(news_data)
     
     return {"message": f"刷新成功，获取 {len(news_items)} 条新闻", "count": len(news_items)}
