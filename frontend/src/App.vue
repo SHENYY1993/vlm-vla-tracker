@@ -113,7 +113,7 @@
                   <a :href="project.url" target="_blank">{{ project.name }}</a>
                 </h3>
                 <p class="item-owner">by {{ project.owner }}</p>
-                <p class="item-description">{{ project.description }}</p>
+                <p class="item-description">{{ project.description || '暂无简介' }}</p>
                 <div class="card-footer">
                   <el-tag v-if="project.language" size="small" type="info">{{ project.language }}</el-tag>
                   <el-tag v-if="project.source" size="small">{{ project.source }}</el-tag>
@@ -400,9 +400,10 @@ body {
   line-height: 1.6;
   margin-bottom: 10px;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 64px;
 }
 
 .card-footer {

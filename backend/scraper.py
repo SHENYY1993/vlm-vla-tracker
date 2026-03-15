@@ -104,9 +104,32 @@ async def fetch_huggingface_models() -> List[Project]:
                             if any(kw in model_id for kw in ['vla', 'robot', 'embodied']):
                                 category = "VLA"
                             
+                            # 获取更详细的描述信息
+                            description = ""
+                            if model.get('card_data'):
+                                card_data = model['card_data']
+                                # 优先使用 modelCardData 中的 description
+                                if card_data.get('description'):
+                                    description = card_data['description']
+                                # 其次使用 summary
+                                elif card_data.get('summary'):
+                                    description = card_data['summary']
+                                # 最后使用 modelCardData 中的其他字段
+                                elif card_data.get('modelCardData', {}).get('description'):
+                                    description = card_data['modelCardData']['description']
+                                # 尝试获取其他可能的描述字段
+                                elif card_data.get('modelCardData', {}).get('model_details', {}).get('description'):
+                                    description = card_data['modelCardData']['model_details']['description']
+                                elif card_data.get('modelCardData', {}).get('model_details', {}).get('model_description'):
+                                    description = card_data['modelCardData']['model_details']['model_description']
+                            
+                            # 如果没有详细描述，使用 pipeline_tag 作为备选
+                            if not description and model.get('pipeline_tag'):
+                                description = model['pipeline_tag']
+                            
                             projects.append(Project(
                                 name=model['modelId'],
-                                description=model.get('card_data', {}).get('summary', '') or model.get('pipeline_tag', ''),
+                                description=description,
                                 url=f"https://huggingface.co/{model['modelId']}",
                                 stars=model.get('downloads', 0),
                                 language=None,
