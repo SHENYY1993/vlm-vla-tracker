@@ -6,8 +6,9 @@ import json
 
 from news_fetcher import fetch_news
 from models import Paper, Project, News
-from scraper import fetch_all_data, fetch_arxiv_papers, fetch_github_projects, fetch_huggingface_models
+from scraper import fetch_all_data, fetch_github_projects, fetch_huggingface_models
 from news_fetcher import fetch_news as fetch_news_async
+from paper_fetcher import fetch_arxiv_papers
 
 router = APIRouter()
 
