@@ -77,6 +77,7 @@
                 </h3>
                 <p class="item-authors">{{ paper.authors }}</p>
                 <p class="item-abstract">{{ paper.abstract }}</p>
+                <p class="item-abstract" v-if="paper.chinese_translation">{{ paper.chinese_translation }}</p>
                 <div class="card-footer">
                   <el-tag size="small" type="info">{{ paper.source }}</el-tag>
                 </div>
@@ -400,10 +401,10 @@ body {
   line-height: 1.6;
   margin-bottom: 10px;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 16;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 64px;
+  min-height: 256px;
 }
 
 .card-footer {

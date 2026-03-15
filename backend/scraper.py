@@ -4,6 +4,7 @@ from typing import List
 from datetime import datetime
 from models import Paper, Project, News
 from news_fetcher import fetch_news as fetch_news_async
+import re
 
 # ArXiv API (no key needed)
 ARXIV_VLM_URL = "https://export.arxiv.org/api/query?search_query=cat:cs.CV+OR+cat:cs.CL+OR+cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=30"
@@ -38,10 +39,14 @@ async def fetch_arxiv_papers() -> List[Paper]:
                 elif any(kw in title_lower for kw in ['vision', 'visual', 'multimodal', 'image']):
                     category = "VLM"
                 
+                # 生成中文翻译
+                chinese_translation = _translate_abstract_to_chinese(summary[:500])
+                
                 papers.append(Paper(
                     title=title,
                     authors=authors,
                     abstract=summary[:500],
+                    chinese_translation=chinese_translation,
                     url=url,
                     published_date=published,
                     source="arXiv",
@@ -294,6 +299,84 @@ def _generate_hf_model_description(model: dict, detailed_info: dict) -> str:
         parts.append("视觉语言动作模型，支持机器人任务")
     
     return " | ".join(parts) if parts else "暂无详细描述"
+
+
+# ==================== 中文翻译函数 ====================
+
+def _translate_abstract_to_chinese(abstract: str) -> str:
+    """将英文摘要翻译为中文"""
+    if not abstract:
+        return ""
+    
+    # 简单的关键词翻译映射
+    translations = {
+        # 常用术语
+        'vision language model': '视觉语言模型',
+        'multimodal': '多模态',
+        'image understanding': '图像理解',
+        'visual question answering': '视觉问答',
+        'image captioning': '图像描述',
+        'visual grounding': '视觉定位',
+        'vision-language': '视觉-语言',
+        'visual language': '视觉语言',
+        
+        # 模型名称
+        'llava': 'LLaVA',
+        'blip': 'BLIP',
+        'clip': 'CLIP',
+        'flamingo': 'Flamingo',
+        
+        # 任务类型
+        'classification': '分类',
+        'detection': '检测',
+        'segmentation': '分割',
+        'generation': '生成',
+        'understanding': '理解',
+        'reasoning': '推理',
+        
+        # 技术术语
+        'transformer': '变换器',
+        'attention': '注意力',
+        'embedding': '嵌入',
+        'pretraining': '预训练',
+        'fine-tuning': '微调',
+        'zero-shot': '零样本',
+        'few-shot': '少样本',
+        
+        # 评价指标
+        'accuracy': '准确率',
+        'precision': '精确率',
+        'recall': '召回率',
+        'f1 score': 'F1分数',
+        'bleu': 'BLEU分数',
+        'rouge': 'ROUGE分数',
+        
+        # 其他常用词
+        'state-of-the-art': '最先进的',
+        'benchmark': '基准测试',
+        'dataset': '数据集',
+        'performance': '性能',
+        'efficiency': '效率',
+        'robustness': '鲁棒性',
+        'generalization': '泛化能力'
+    }
+    
+    # 转换为小写进行匹配
+    abstract_lower = abstract.lower()
+    translated = abstract
+    
+    # 替换翻译映射中的术语
+    for english, chinese in translations.items():
+        if english in abstract_lower:
+            # 保持原始大小写，只替换内容
+            pattern = re.escape(english)
+            translated = re.sub(pattern, chinese, translated, flags=re.IGNORECASE)
+    
+    # 如果翻译后没有变化，返回原始摘要
+    if translated == abstract:
+        return abstract
+    
+    return translated
 
 
 # 手动更新所有数据

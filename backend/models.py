@@ -8,6 +8,7 @@ class Paper(BaseModel):
     title: str
     authors: str
     abstract: str
+    chinese_translation: Optional[str] = None  # 中文翻译
     url: str
     published_date: Optional[str] = None
     source: str  # arxiv, huggingface, github
