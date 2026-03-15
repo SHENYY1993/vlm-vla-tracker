@@ -67,9 +67,15 @@ async def fetch_github_projects() -> List[Project]:
                     if any(kw in name_lower for kw in ['vla', 'robot', 'action', 'embodied', 'agent']):
                         category = "VLA"
                     
+                    # 获取更详细的项目信息
+                    detailed_info = await _fetch_github_repo_details(client, repo['full_name'])
+                    
+                    # 生成项目简介
+                    description = _generate_github_project_description(repo, detailed_info)
+                    
                     projects.append(Project(
                         name=repo['name'],
-                        description=repo['description'] or "",
+                        description=description,
                         url=repo['html_url'],
                         stars=repo['stargazers_count'],
                         language=repo['language'],
@@ -104,28 +110,11 @@ async def fetch_huggingface_models() -> List[Project]:
                             if any(kw in model_id for kw in ['vla', 'robot', 'embodied']):
                                 category = "VLA"
                             
-                            # 获取更详细的描述信息
-                            description = ""
-                            if model.get('card_data'):
-                                card_data = model['card_data']
-                                # 优先使用 modelCardData 中的 description
-                                if card_data.get('description'):
-                                    description = card_data['description']
-                                # 其次使用 summary
-                                elif card_data.get('summary'):
-                                    description = card_data['summary']
-                                # 最后使用 modelCardData 中的其他字段
-                                elif card_data.get('modelCardData', {}).get('description'):
-                                    description = card_data['modelCardData']['description']
-                                # 尝试获取其他可能的描述字段
-                                elif card_data.get('modelCardData', {}).get('model_details', {}).get('description'):
-                                    description = card_data['modelCardData']['model_details']['description']
-                                elif card_data.get('modelCardData', {}).get('model_details', {}).get('model_description'):
-                                    description = card_data['modelCardData']['model_details']['model_description']
+                            # 获取更详细的模型信息
+                            detailed_info = await _fetch_hf_model_details(client, model['modelId'])
                             
-                            # 如果没有详细描述，使用 pipeline_tag 作为备选
-                            if not description and model.get('pipeline_tag'):
-                                description = model['pipeline_tag']
+                            # 生成模型简介
+                            description = _generate_hf_model_description(model, detailed_info)
                             
                             projects.append(Project(
                                 name=model['modelId'],
@@ -171,6 +160,140 @@ async def fetch_news() -> List[News]:
             )
         ]
         return example_news
+
+
+# ==================== 辅助函数 ====================
+
+async def _fetch_github_repo_details(client: httpx.AsyncClient, full_name: str) -> dict:
+    """获取GitHub仓库的详细信息"""
+    try:
+        url = f"https://api.github.com/repos/{full_name}"
+        response = await client.get(url)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Error fetching repo details for {full_name}: {e}")
+    return {}
+
+
+def _generate_github_project_description(repo: dict, detailed_info: dict) -> str:
+    """生成GitHub项目的详细简介"""
+    name = repo.get('name', '')
+    description = repo.get('description', '')
+    language = repo.get('language', '')
+    stars = repo.get('stargazers_count', 0)
+    
+    # 从详细信息中获取更多数据
+    topics = detailed_info.get('topics', [])
+    forks = detailed_info.get('forks_count', 0)
+    issues = detailed_info.get('open_issues_count', 0)
+    
+    # 生成简介
+    parts = []
+    
+    # 基本描述
+    if description:
+        parts.append(description)
+    
+    # 技术栈
+    if language:
+        parts.append(f"使用 {language} 开发")
+    
+    # 统计信息
+    stats = []
+    if stars > 0:
+        stats.append(f"stars: {stars}")
+    if forks > 0:
+        stats.append(f"forks: {forks}")
+    if issues > 0:
+        stats.append(f"issues: {issues}")
+    
+    if stats:
+        parts.append(" | ".join(stats))
+    
+    # 主题标签
+    if topics:
+        topic_str = " ".join([f"#{topic}" for topic in topics[:5]])  # 只取前5个
+        parts.append(f"标签: {topic_str}")
+    
+    # 项目类型判断
+    name_lower = name.lower()
+    if 'llava' in name_lower:
+        parts.append("LLaVA系列模型，支持图像理解和问答")
+    elif 'blip' in name_lower:
+        parts.append("BLIP系列模型，专注于视觉语言理解")
+    elif 'clip' in name_lower:
+        parts.append("CLIP模型，实现图文匹配和理解")
+    elif any(kw in name_lower for kw in ['robot', 'action', 'embodied', 'vla']):
+        parts.append("视觉语言动作模型，支持机器人控制")
+    
+    return " | ".join(parts) if parts else "暂无详细描述"
+
+
+async def _fetch_hf_model_details(client: httpx.AsyncClient, model_id: str) -> dict:
+    """获取HuggingFace模型的详细信息"""
+    try:
+        url = f"https://huggingface.co/api/models/{model_id}"
+        response = await client.get(url)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Error fetching model details for {model_id}: {e}")
+    return {}
+
+
+def _generate_hf_model_description(model: dict, detailed_info: dict) -> str:
+    """生成HuggingFace模型的详细简介"""
+    model_id = model.get('modelId', '')
+    downloads = model.get('downloads', 0)
+    
+    # 从详细信息中获取更多数据
+    card_data = detailed_info.get('card_data', {})
+    pipeline_tag = model.get('pipeline_tag', '')
+    tags = model.get('tags', [])
+    
+    # 生成简介
+    parts = []
+    
+    # 基本信息
+    if pipeline_tag:
+        parts.append(f"任务类型: {pipeline_tag}")
+    
+    # 下载量
+    if downloads > 0:
+        parts.append(f"下载量: {downloads:,}")
+    
+    # 从card_data中获取描述
+    if card_data.get('description'):
+        desc = card_data['description'][:200]
+        parts.append(f"描述: {desc}")
+    elif card_data.get('summary'):
+        summary = card_data['summary'][:200]
+        parts.append(f"摘要: {summary}")
+    
+    # 标签
+    if tags:
+        relevant_tags = [tag for tag in tags if tag in ['vision', 'multimodal', 'language', 'image', 'text']]
+        if relevant_tags:
+            tag_str = ", ".join(relevant_tags[:3])
+            parts.append(f"标签: {tag_str}")
+    
+    # 模型系列判断
+    model_lower = model_id.lower()
+    if 'llava' in model_lower:
+        parts.append("LLaVA系列，支持图像问答和理解")
+    elif 'blip' in model_lower:
+        parts.append("BLIP系列，专注于视觉语言任务")
+    elif 'clip' in model_lower:
+        parts.append("CLIP模型，实现图文匹配")
+    elif 'qwen' in model_lower and 'vl' in model_lower:
+        parts.append("通义千问VL，多模态大模型")
+    elif 'internvl' in model_lower:
+        parts.append("InternVL，通用视觉语言模型")
+    elif any(kw in model_lower for kw in ['robot', 'action', 'embodied', 'vla']):
+        parts.append("视觉语言动作模型，支持机器人任务")
+    
+    return " | ".join(parts) if parts else "暂无详细描述"
 
 
 # 手动更新所有数据
