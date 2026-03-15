@@ -44,7 +44,18 @@ async def refresh_papers(db):
     
     # 插入数据库
     if new_papers:
-        papers_data = [p.model_dump() for p in new_papers]
+        papers_data = []
+        for p in new_papers:
+            papers_data.append({
+                "title": p.title,
+                "authors": p.authors,
+                "abstract": p.abstract,
+                "url": p.url,
+                "published_date": p.published_date,
+                "source": p.source,
+                "category": p.category,
+                "created_at": p.created_at
+            })
         await db.papers.insert_many(papers_data)
     
     return {"message": f"刷新成功，获取 {len(new_papers)} 篇论文", "count": len(new_papers)}
@@ -78,7 +89,19 @@ async def refresh_projects(db):
             unique_projects.append(p)
     
     if unique_projects:
-        projects_data = [p.model_dump() for p in unique_projects]
+        projects_data = []
+        for p in unique_projects:
+            projects_data.append({
+                "name": p.name,
+                "description": p.description,
+                "url": p.url,
+                "stars": p.stars,
+                "language": p.language,
+                "owner": p.owner,
+                "category": p.category,
+                "updated_at": p.updated_at,
+                "created_at": p.created_at
+            })
         await db.projects.insert_many(projects_data)
     
     return {"message": f"刷新成功，获取 {len(unique_projects)} 个项目", "count": len(unique_projects)}
@@ -143,7 +166,19 @@ async def refresh_all(db):
     await db.papers.delete_many({})
     papers = await fetch_arxiv_papers()
     if papers:
-        await db.papers.insert_many([p.model_dump() for p in papers])
+        papers_data = []
+        for p in papers:
+            papers_data.append({
+                "title": p.title,
+                "authors": p.authors,
+                "abstract": p.abstract,
+                "url": p.url,
+                "published_date": p.published_date,
+                "source": p.source,
+                "category": p.category,
+                "created_at": p.created_at
+            })
+        await db.papers.insert_many(papers_data)
     
     # 刷新项目
     await db.projects.delete_many({})
@@ -159,7 +194,20 @@ async def refresh_all(db):
             unique_projects.append(p)
     
     if unique_projects:
-        await db.projects.insert_many([p.model_dump() for p in unique_projects])
+        projects_data = []
+        for p in unique_projects:
+            projects_data.append({
+                "name": p.name,
+                "description": p.description,
+                "url": p.url,
+                "stars": p.stars,
+                "language": p.language,
+                "owner": p.owner,
+                "category": p.category,
+                "updated_at": p.updated_at,
+                "created_at": p.created_at
+            })
+        await db.projects.insert_many(projects_data)
     
     return {
         "message": "刷新完成",

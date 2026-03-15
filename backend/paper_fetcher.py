@@ -24,6 +24,7 @@ class Paper:
         self.published_date = published_date
         self.source = source
         self.category = category
+        self.created_at: datetime = datetime.now()
 
 
 class ArxivPaperFetcher:
