@@ -29,7 +29,7 @@ api_router = APIRouter(prefix="/api")
 # 导入路由函数
 from routes import (
     get_papers, refresh_papers, get_projects, refresh_projects,
-    get_news, get_all_data, refresh_all, get_stats
+    get_news, refresh_news, get_all_data, refresh_all, get_stats
 )
 
 # 包装路由函数，注入db依赖
@@ -52,6 +52,10 @@ async def Projects_refresh(db=Depends(get_db)):
 @api_router.get("/news")
 async def News(db=Depends(get_db)):
     return await get_news(db)
+
+@api_router.post("/news/refresh")
+async def News_refresh(db=Depends(get_db)):
+    return await refresh_news(db)
 
 @api_router.get("/all")
 async def All(db=Depends(get_db)):

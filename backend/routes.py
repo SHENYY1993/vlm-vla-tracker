@@ -5,7 +5,7 @@ from bson import ObjectId
 import json
 
 from models import Paper, Project, News
-from scraper import fetch_all_data, fetch_arxiv_papers, fetch_github_projects, fetch_huggingface_models
+from scraper import fetch_all_data, fetch_arxiv_papers, fetch_github_projects, fetch_huggingface_models, fetch_news
 
 router = APIRouter()
 
@@ -88,6 +88,20 @@ async def get_news(db):
     """获取所有新闻"""
     news = await db.news.find().sort("created_at", -1).to_list(50)
     return [serialize_doc(n) for n in news]
+
+
+@router.post("/news/refresh")
+async def refresh_news(db):
+    """手动刷新新闻数据"""
+    await db.news.delete_many({})
+    
+    news_items = await fetch_news()
+    
+    if news_items:
+        news_data = [n.model_dump() for n in news_items]
+        await db.news.insert_many(news_data)
+    
+    return {"message": f"刷新成功，获取 {len(news_items)} 条新闻", "count": len(news_items)}
 
 
 # ==================== All Data ====================

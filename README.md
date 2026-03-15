@@ -111,6 +111,7 @@ npm run dev
 
 - `POST /api/papers/refresh` - 刷新论文数据
 - `POST /api/projects/refresh` - 刷新项目数据
+- `POST /api/news/refresh` - 刷新新闻数据
 - `POST /api/refresh-all` - 一键刷新所有数据
 
 ## 数据来源
@@ -138,14 +139,14 @@ npm run dev
 
 ```python
 # 论文分类示例
-title_lower = paper_title.lower()
+title_lower = title.lower()  # title 是论文标题
 if any(kw in title_lower for kw in ['vla', 'robot', 'action', 'embodied', 'agent']):
     category = "VLA"
 elif any(kw in title_lower for kw in ['vision', 'visual', 'multimodal', 'image']):
     category = "VLM"
 
 # 项目分类示例
-name_lower = project_name.lower()
+name_lower = name.lower()  # name 是项目名称
 if any(keyword in name_lower for keyword in ['vla', 'robot', 'action', 'embodied', 'agent']):
     category = "VLA"
 ```

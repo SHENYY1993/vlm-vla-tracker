@@ -125,7 +125,38 @@
 
           <!-- 新闻Tab -->
           <el-tab-pane label="📰 新闻" name="news">
-            <el-empty description="新闻功能开发中..."></el-empty>
+            <div class="tab-header">
+              <el-button @click="refreshNews" :loading="loadingNews">
+                <el-icon><Refresh /></el-icon> 刷新新闻
+              </el-button>
+              <el-radio-group v-model="newsFilter" size="small">
+                <el-radio-button label="all">全部</el-radio-button>
+                <el-radio-button label="VLM">VLM</el-radio-button>
+                <el-radio-button label="VLA">VLA</el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="card-list">
+              <el-card v-for="news in filteredNews" :key="news._id" class="item-card">
+                <template #header>
+                  <div class="card-header">
+                    <el-tag :type="news.category === 'VLA' ? 'success' : 'primary'" size="small">
+                      {{ news.category }}
+                    </el-tag>
+                    <span v-if="news.published_date" class="news-date">
+                      {{ news.published_date }}
+                    </span>
+                  </div>
+                </template>
+                <h3 class="item-title">
+                  <a :href="news.url" target="_blank">{{ news.title }}</a>
+                </h3>
+                <p class="item-content">{{ news.content }}</p>
+                <div class="card-footer">
+                  <el-tag size="small" type="info">{{ news.source }}</el-tag>
+                </div>
+              </el-card>
+              <el-empty v-if="filteredNews.length === 0" description="暂无新闻数据"></el-empty>
+            </div>
           </el-tab-pane>
         </el-tabs>
       </el-main>
@@ -148,9 +179,11 @@ const news = ref([])
 const stats = ref({ total_papers: 0, vlm_papers: 0, vla_papers: 0, total_projects: 0 })
 const paperFilter = ref('all')
 const projectFilter = ref('all')
+const newsFilter = ref('all')
 const refreshing = ref(false)
 const loadingPapers = ref(false)
 const loadingProjects = ref(false)
+const loadingNews = ref(false)
 
 // 过滤
 const filteredPapers = computed(() => {
@@ -161,6 +194,11 @@ const filteredPapers = computed(() => {
 const filteredProjects = computed(() => {
   if (projectFilter.value === 'all') return projects.value
   return projects.value.filter(p => p.category === projectFilter.value)
+})
+
+const filteredNews = computed(() => {
+  if (newsFilter.value === 'all') return news.value
+  return news.value.filter(n => n.category === newsFilter.value)
 })
 
 // API调用
@@ -203,6 +241,19 @@ async function refreshProjects() {
     ElMessage.error('刷新失败')
   } finally {
     loadingProjects.value = false
+  }
+}
+
+async function refreshNews() {
+  loadingNews.value = true
+  try {
+    const res = await axios.post(`${API_BASE}/news/refresh`)
+    ElMessage.success(res.data.message)
+    await fetchAll()
+  } catch (e) {
+    ElMessage.error('刷新失败')
+  } finally {
+    loadingNews.value = false
   }
 }
 
