@@ -40,7 +40,7 @@ services:
   frontend:
     build:
       context: .
-      target: production
+      dockerfile: Dockerfile
     container_name: vlm-vla-frontend
     restart: unless-stopped
     ports:
