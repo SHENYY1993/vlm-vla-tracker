@@ -26,7 +26,7 @@ CMD ["python", "backend/main.py"]
 
 
 # 多阶段构建：前端服务
-FROM node:18-alpine as frontend
+FROM node:20-alpine as frontend
 
 # 设置工作目录
 WORKDIR /app
