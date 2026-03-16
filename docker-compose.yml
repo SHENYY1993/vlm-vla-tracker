@@ -44,7 +44,7 @@ services:
     container_name: vlm-vla-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8083:80"
     depends_on:
       - backend
     networks:

@@ -85,7 +85,7 @@ pipeline {
                         
                         # 健康检查
                         echo "Performing health check..."
-                        curl -f http://localhost/health || exit 1
+                        curl -f http://localhost:8083/health || exit 1
                         curl -f http://localhost:8000/api/stats || exit 1
                         
                         echo "Deployment completed successfully!"
