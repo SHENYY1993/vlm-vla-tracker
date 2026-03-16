@@ -78,7 +78,7 @@ pipeline {
                         
                         # 启动新容器
                         echo "Starting new containers..."
-                        docker-compose up -d
+                        docker-compose up -d --build
                         
                         # 等待服务启动
                         sleep 30
