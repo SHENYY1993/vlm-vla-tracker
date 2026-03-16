@@ -78,6 +78,9 @@ async def fetch_github_projects() -> List[Project]:
                     # 生成项目简介
                     description = _generate_github_project_description(repo, detailed_info)
                     
+                    # 生成复现指南
+                    guideline = _generate_github_project_guideline(repo, detailed_info)
+                    
                     projects.append(Project(
                         name=repo['name'],
                         description=description,
@@ -86,7 +89,8 @@ async def fetch_github_projects() -> List[Project]:
                         language=repo['language'],
                         owner=repo['owner']['login'],
                         category=category,
-                        updated_at=repo.get('updated_at', '')[:10]
+                        updated_at=repo.get('updated_at', '')[:10],
+                        guideline=guideline
                     ))
     except Exception as e:
         print(f"Error fetching github: {e}")
@@ -121,16 +125,20 @@ async def fetch_huggingface_models() -> List[Project]:
                             # 生成模型简介
                             description = _generate_hf_model_description(model, detailed_info)
                             
-                            projects.append(Project(
-                                name=model['modelId'],
-                                description=description,
-                                url=f"https://huggingface.co/{model['modelId']}",
-                                stars=model.get('downloads', 0),
-                                language=None,
-                                owner=model['modelId'].split('/')[0] if '/' in model['modelId'] else model['modelId'],
-                                category=category,
-                                updated_at=None
-                            ))
+                            # 生成复现指南
+                            guideline = _generate_hf_model_guideline(model, detailed_info)
+                    
+                    projects.append(Project(
+                        name=model['modelId'],
+                        description=description,
+                        url=f"https://huggingface.co/{model['modelId']}",
+                        stars=model.get('downloads', 0),
+                        language=None,
+                        owner=model['modelId'].split('/')[0] if '/' in model['modelId'] else model['modelId'],
+                        category=category,
+                        updated_at=None,
+                        guideline=guideline
+                    ))
     except Exception as e:
         print(f"Error fetching huggingface: {e}")
     return projects[:15]
@@ -377,6 +385,410 @@ def _translate_abstract_to_chinese(abstract: str) -> str:
         return abstract
     
     return translated
+
+
+# ==================== 复现指南生成函数 ====================
+
+def _generate_github_project_guideline(repo: dict, detailed_info: dict) -> str:
+    """生成GitHub项目的复现指南"""
+    name = repo.get('name', '')
+    description = repo.get('description', '')
+    language = repo.get('language', '')
+    stars = repo.get('stargazers_count', 0)
+    url = repo.get('html_url', '')
+    
+    # 从详细信息中获取更多数据
+    topics = detailed_info.get('topics', [])
+    license_info = detailed_info.get('license', {})
+    default_branch = detailed_info.get('default_branch', 'main')
+    
+    guideline_parts = []
+    
+    # 1. 项目概述
+    guideline_parts.append("## 📋 项目概述")
+    guideline_parts.append(f"- **项目名称**: {name}")
+    guideline_parts.append(f"- **项目描述**: {description}")
+    guideline_parts.append(f"- **编程语言**: {language or '未指定'}")
+    guideline_parts.append(f"- **GitHub地址**: {url}")
+    guideline_parts.append(f"- **Stars**: {stars:,}")
+    if license_info:
+        guideline_parts.append(f"- **许可证**: {license_info.get('name', '未指定')}")
+    
+    # 2. 硬件要求
+    guideline_parts.append("\n## 🖥️ 硬件要求")
+    if 'cuda' in topics or 'gpu' in topics or 'pytorch' in topics or 'tensorflow' in topics:
+        guideline_parts.append("- **GPU**: 建议使用NVIDIA GPU，显存至少8GB（推荐16GB或以上）")
+        guideline_parts.append("- **CUDA版本**: 建议CUDA 11.7或12.1")
+        guideline_parts.append("- **内存**: 建议16GB或以上")
+    else:
+        guideline_parts.append("- **CPU**: 支持CPU运行，但速度较慢")
+        guideline_parts.append("- **内存**: 建议8GB或以上")
+    
+    # 3. 软件依赖
+    guideline_parts.append("\n## 📦 软件依赖")
+    guideline_parts.append("### Python环境")
+    guideline_parts.append("```bash")
+    guideline_parts.append("# 推荐使用conda创建虚拟环境")
+    guideline_parts.append("conda create -n vlm-env python=3.9 -y")
+    guideline_parts.append("conda activate vlm-env")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 基础依赖")
+    guideline_parts.append("```bash")
+    guideline_parts.append("pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118")
+    guideline_parts.append("pip install transformers datasets accelerate peft bitsandbytes")
+    guideline_parts.append("```")
+    
+    # 4. 数据集
+    guideline_parts.append("\n## 📊 数据集")
+    if 'llava' in name.lower():
+        guideline_parts.append("- **LLaVA训练数据**: https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K")
+        guideline_parts.append("- **COCO数据集**: https://cocodataset.org/")
+        guideline_parts.append("- **VQAv2数据集**: https://visualqa.org/")
+    elif 'blip' in name.lower():
+        guideline_parts.append("- **COCO数据集**: https://cocodataset.org/")
+        guideline_parts.append("- **Flickr30k数据集**: https://shannon.cs.illinois.edu/DenotationGraph/")
+        guideline_parts.append("- **Conceptual Captions**: https://ai.google.com/research/ConceptualCaptions/")
+    elif 'clip' in name.lower():
+        guideline_parts.append("- **WIT数据集**: https://github.com/google-research-datasets/wit")
+        guideline_parts.append("- **LAION数据集**: https://laion.ai/")
+    else:
+        guideline_parts.append("- **具体数据集**: 请参考项目README中的数据集说明")
+        guideline_parts.append("- **数据预处理**: 通常需要将图像调整为统一尺寸，文本进行tokenization")
+    
+    # 5. 复现步骤
+    guideline_parts.append("\n## 🚀 复现步骤")
+    guideline_parts.append("### 1. 克隆项目")
+    guideline_parts.append("```bash")
+    guideline_parts.append(f"git clone {url}")
+    guideline_parts.append(f"cd {name}")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 2. 安装依赖")
+    guideline_parts.append("```bash")
+    guideline_parts.append("pip install -r requirements.txt")
+    guideline_parts.append("# 或者根据项目README安装特定依赖")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 3. 下载预训练模型")
+    if 'llava' in name.lower():
+        guideline_parts.append("```bash")
+        guideline_parts.append("# 下载LLaVA模型")
+        guideline_parts.append("huggingface-cli download liuhaotian/llava-v1.5-7b --local-dir ./models/llava-7b")
+        guideline_parts.append("```")
+    elif 'blip' in name.lower():
+        guideline_parts.append("```bash")
+        guideline_parts.append("# 下载BLIP模型")
+        guideline_parts.append("huggingface-cli download Salesforce/blip2-opt-2.7b --local-dir ./models/blip2-2.7b")
+        guideline_parts.append("```")
+    elif 'clip' in name.lower():
+        guideline_parts.append("```bash")
+        guideline_parts.append("# 下载CLIP模型")
+        guideline_parts.append("huggingface-cli download openai/clip-vit-base-patch32 --local-dir ./models/clip-base")
+        guideline_parts.append("```")
+    else:
+        guideline_parts.append("```bash")
+        guideline_parts.append("# 请根据项目README下载相应的预训练模型")
+        guideline_parts.append("# 通常使用HuggingFace模型库")
+        guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 4. 数据准备")
+    guideline_parts.append("```bash")
+    guideline_parts.append("# 创建数据目录")
+    guideline_parts.append("mkdir -p data/images data/annotations")
+    guideline_parts.append("# 下载并解压数据集到相应目录")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 5. 训练模型")
+    if 'llava' in name.lower():
+        guideline_parts.append("```bash")
+        guideline_parts.append("# LLaVA训练示例")
+        guideline_parts.append("python train.py \\")
+        guideline_parts.append("    --model_name_or_path ./models/llava-7b \\")
+        guideline_parts.append("    --data_path ./data/llava_data.json \\")
+        guideline_parts.append("    --image_folder ./data/images \\")
+        guideline_parts.append("    --output_dir ./output/llava-finetuned \\")
+        guideline_parts.append("    --num_train_epochs 3 \\")
+        guideline_parts.append("    --per_device_train_batch_size 4 \\")
+        guideline_parts.append("    --gradient_accumulation_steps 4 \\")
+        guideline_parts.append("    --learning_rate 2e-5 \\")
+        guideline_parts.append("    --warmup_steps 100 \\")
+        guideline_parts.append("    --save_steps 1000 \\")
+        guideline_parts.append("    --logging_steps 100")
+        guideline_parts.append("```")
+    elif 'blip' in name.lower():
+        guideline_parts.append("```bash")
+        guideline_parts.append("# BLIP训练示例")
+        guideline_parts.append("python train.py \\")
+        guideline_parts.append("    --model_name_or_path ./models/blip2-2.7b \\")
+        guideline_parts.append("    --data_path ./data/coco_data.json \\")
+        guideline_parts.append("    --image_folder ./data/images \\")
+        guideline_parts.append("    --output_dir ./output/blip2-finetuned \\")
+        guideline_parts.append("    --num_train_epochs 10 \\")
+        guideline_parts.append("    --per_device_train_batch_size 2 \\")
+        guideline_parts.append("    --learning_rate 1e-5 \\")
+        guideline_parts.append("    --warmup_steps 500")
+        guideline_parts.append("```")
+    else:
+        guideline_parts.append("```bash")
+        guideline_parts.append("# 请根据项目README中的训练脚本进行训练")
+        guideline_parts.append("# 通常包含以下参数：")
+        guideline_parts.append("# - 模型路径")
+        guideline_parts.append("# - 数据路径")
+        guideline_parts.append("# - 输出目录")
+        guideline_parts.append("# - 训练轮数")
+        guideline_parts.append("# - 学习率")
+        guideline_parts.append("# - 批次大小")
+        guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 6. 评估模型")
+    guideline_parts.append("```bash")
+    guideline_parts.append("# 评估脚本")
+    guideline_parts.append("python evaluate.py \\")
+    guideline_parts.append("    --model_path ./output/fine-tuned-model \\")
+    guideline_parts.append("    --eval_data ./data/eval_data.json \\")
+    guideline_parts.append("    --image_folder ./data/images")
+    guideline_parts.append("```")
+    
+    # 7. 常见问题
+    guideline_parts.append("\n## ❓ 常见问题")
+    guideline_parts.append("### 内存不足 (OOM)")
+    guideline_parts.append("- 减少batch_size")
+    guideline_parts.append("- 使用梯度累积 (gradient_accumulation_steps)")
+    guideline_parts.append("- 启用混合精度训练 (fp16=True)")
+    guideline_parts.append("- 使用模型并行或ZeRO优化")
+    
+    guideline_parts.append("\n### 训练速度慢")
+    guideline_parts.append("- 确保使用GPU训练")
+    guideline_parts.append("- 检查CUDA和cuDNN版本兼容性")
+    guideline_parts.append("- 使用更大的batch_size")
+    guideline_parts.append("- 启用数据预加载")
+    
+    guideline_parts.append("\n### 模型效果不佳")
+    guideline_parts.append("- 检查数据预处理是否正确")
+    guideline_parts.append("- 调整学习率和训练轮数")
+    guideline_parts.append("- 确保使用了正确的预训练模型")
+    guideline_parts.append("- 检查损失函数和评估指标")
+    
+    # 8. 参考资源
+    guideline_parts.append("\n## 🔗 参考资源")
+    guideline_parts.append("- [PyTorch官方文档](https://pytorch.org/docs/stable/index.html)")
+    guideline_parts.append("- [Transformers库文档](https://huggingface.co/docs/transformers/)")
+    guideline_parts.append("- [项目官方README](https://github.com/your-username/your-project)")
+    guideline_parts.append("- [相关论文链接](https://arxiv.org/)")
+    
+    return "\n".join(guideline_parts)
+
+
+def _generate_hf_model_guideline(model: dict, detailed_info: dict) -> str:
+    """生成HuggingFace模型的复现指南"""
+    model_id = model.get('modelId', '')
+    downloads = model.get('downloads', 0)
+    tags = model.get('tags', [])
+    card_data = detailed_info.get('card_data', {})
+    
+    guideline_parts = []
+    
+    # 1. 模型概述
+    guideline_parts.append("## 📋 模型概述")
+    guideline_parts.append(f"- **模型名称**: {model_id}")
+    guideline_parts.append(f"- **下载量**: {downloads:,}")
+    guideline_parts.append(f"- **HuggingFace地址**: https://huggingface.co/{model_id}")
+    if card_data.get('description'):
+        guideline_parts.append(f"- **模型描述**: {card_data['description'][:200]}...")
+    
+    # 2. 硬件要求
+    guideline_parts.append("\n## 🖥️ 硬件要求")
+    model_lower = model_id.lower()
+    if any(kw in model_lower for kw in ['7b', '8b', 'llama', 'gpt']):
+        guideline_parts.append("- **GPU**: 建议使用NVIDIA A100 40GB或V100 32GB")
+        guideline_parts.append("- **显存**: 至少24GB（用于7B模型）")
+        guideline_parts.append("- **内存**: 建议64GB或以上")
+    elif any(kw in model_lower for kw in ['1b', '2b', '3b']):
+        guideline_parts.append("- **GPU**: 建议使用RTX 3090或A100 40GB")
+        guideline_parts.append("- **显存**: 至少16GB")
+        guideline_parts.append("- **内存**: 建议32GB或以上")
+    else:
+        guideline_parts.append("- **GPU**: 建议使用NVIDIA GPU，显存至少8GB")
+        guideline_parts.append("- **内存**: 建议16GB或以上")
+        guideline_parts.append("- **CPU**: 支持CPU运行，但速度较慢")
+    
+    # 3. 软件依赖
+    guideline_parts.append("\n## 📦 软件依赖")
+    guideline_parts.append("```bash")
+    guideline_parts.append("# 基础环境")
+    guideline_parts.append("conda create -n vlm-env python=3.9 -y")
+    guideline_parts.append("conda activate vlm-env")
+    guideline_parts.append("")
+    guideline_parts.append("# PyTorch (根据CUDA版本选择)")
+    guideline_parts.append("pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118")
+    guideline_parts.append("")
+    guideline_parts.append("# HuggingFace生态")
+    guideline_parts.append("pip install transformers datasets accelerate peft bitsandbytes")
+    guideline_parts.append("pip install sentencepiece einops flash-attn")
+    guideline_parts.append("")
+    guideline_parts.append("# 其他依赖")
+    guideline_parts.append("pip install pillow matplotlib tqdm")
+    guideline_parts.append("```")
+    
+    # 4. 数据集
+    guideline_parts.append("\n## 📊 数据集")
+    if 'llava' in model_lower:
+        guideline_parts.append("- **LLaVA训练数据**: https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K")
+        guideline_parts.append("- **COCO数据集**: https://cocodataset.org/")
+        guideline_parts.append("- **数据格式**: JSON格式，包含image, text, conversation字段")
+    elif 'blip' in model_lower:
+        guideline_parts.append("- **COCO数据集**: https://cocodataset.org/")
+        guideline_parts.append("- **Flickr30k数据集**: https://shannon.cs.illinois.edu/DenotationGraph/")
+        guideline_parts.append("- **数据格式**: 图像+文本对")
+    elif 'clip' in model_lower:
+        guideline_parts.append("- **LAION数据集**: https://laion.ai/")
+        guideline_parts.append("- **Conceptual Captions**: https://ai.google.com/research/ConceptualCaptions/")
+        guideline_parts.append("- **数据格式**: 图像+文本对")
+    else:
+        guideline_parts.append("- **具体数据集**: 请参考模型卡片中的数据说明")
+        guideline_parts.append("- **数据预处理**: 通常需要将图像调整为统一尺寸")
+    
+    # 5. 使用方法
+    guideline_parts.append("\n## 🚀 使用方法")
+    guideline_parts.append("### 1. 加载模型")
+    guideline_parts.append("```python")
+    guideline_parts.append("from transformers import AutoProcessor, AutoModelForCausalLM")
+    guideline_parts.append("import torch")
+    guideline_parts.append("")
+    guideline_parts.append(f"model = AutoModelForCausalLM.from_pretrained(")
+    guideline_parts.append(f"    \"{model_id}\",")
+    guideline_parts.append("    torch_dtype=torch.float16,")
+    guideline_parts.append("    device_map=\"auto\"")
+    guideline_parts.append(")")
+    guideline_parts.append("")
+    if 'llava' in model_lower or 'blip' in model_lower:
+        guideline_parts.append("processor = AutoProcessor.from_pretrained(\"" + model_id + "\")")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### 2. 图像理解示例")
+    guideline_parts.append("```python")
+    guideline_parts.append("from PIL import Image")
+    guideline_parts.append("import requests")
+    guideline_parts.append("")
+    guideline_parts.append("# 加载图像")
+    guideline_parts.append("image = Image.open(\"path/to/your/image.jpg\")")
+    guideline_parts.append("")
+    if 'llava' in model_lower:
+        guideline_parts.append("# LLaVA格式的提示词")
+        guideline_parts.append("prompt = \"USER: <image>\\nWhat is shown in this image?\\nASSISTANT:\"")
+    elif 'blip' in model_lower:
+        guideline_parts.append("# BLIP格式的提示词")
+        guideline_parts.append("prompt = \"Question: What is in the image? Answer:\"")
+    else:
+        guideline_parts.append("# 通用提示词格式")
+        guideline_parts.append("prompt = \"Describe this image:\"")
+    guideline_parts.append("")
+    guideline_parts.append("# 处理输入")
+    if 'llava' in model_lower or 'blip' in model_lower:
+        guideline_parts.append("inputs = processor(prompt, image, return_tensors='pt').to(\"cuda\")")
+    else:
+        guideline_parts.append("inputs = processor(prompt, return_tensors='pt').to(\"cuda\")")
+    guideline_parts.append("")
+    guideline_parts.append("# 生成回答")
+    guideline_parts.append("with torch.no_grad():")
+    guideline_parts.append("    output = model.generate(**inputs, max_new_tokens=200, do_sample=True)")
+    guideline_parts.append("")
+    guideline_parts.append("# 解码输出")
+    guideline_parts.append("response = processor.decode(output[0], skip_special_tokens=True)")
+    guideline_parts.append("print(response)")
+    guideline_parts.append("```")
+    
+    # 6. 微调训练
+    guideline_parts.append("\n## 🔧 微调训练")
+    guideline_parts.append("### 使用PEFT进行LoRA微调")
+    guideline_parts.append("```python")
+    guideline_parts.append("from peft import LoraConfig, get_peft_model")
+    guideline_parts.append("from transformers import TrainingArguments, Trainer")
+    guideline_parts.append("")
+    guideline_parts.append("# 配置LoRA")
+    guideline_parts.append("lora_config = LoraConfig(")
+    guideline_parts.append("    r=8,")
+    guideline_parts.append("    lora_alpha=16,")
+    guideline_parts.append("    target_modules=[\"q_proj\", \"v_proj\"],  # 根据模型调整")
+    guideline_parts.append("    lora_dropout=0.1,")
+    guideline_parts.append("    bias=\"none\",")
+    guideline_parts.append("    task_type=\"CAUSAL_LM\"")
+    guideline_parts.append(")")
+    guideline_parts.append("")
+    guideline_parts.append("# 应用LoRA")
+    guideline_parts.append("model = get_peft_model(model, lora_config)")
+    guideline_parts.append("")
+    guideline_parts.append("# 训练参数")
+    guideline_parts.append("training_args = TrainingArguments(")
+    guideline_parts.append("    output_dir=\"./results\",")
+    guideline_parts.append("    num_train_epochs=3,")
+    guideline_parts.append("    per_device_train_batch_size=4,")
+    guideline_parts.append("    gradient_accumulation_steps=4,")
+    guideline_parts.append("    learning_rate=2e-4,")
+    guideline_parts.append("    fp16=True,")
+    guideline_parts.append("    logging_steps=10,")
+    guideline_parts.append("    save_steps=500,")
+    guideline_parts.append("    evaluation_strategy=\"no\"")
+    guideline_parts.append(")")
+    guideline_parts.append("```")
+    
+    # 7. 性能优化
+    guideline_parts.append("\n## ⚡ 性能优化")
+    guideline_parts.append("### 量化推理")
+    guideline_parts.append("```python")
+    guideline_parts.append("# 使用bitsandbytes进行4-bit量化")
+    guideline_parts.append("from transformers import BitsAndBytesConfig")
+    guideline_parts.append("")
+    guideline_parts.append("bnb_config = BitsAndBytesConfig(")
+    guideline_parts.append("    load_in_4bit=True,")
+    guideline_parts.append("    bnb_4bit_quant_type=\"nf4\",")
+    guideline_parts.append("    bnb_4bit_compute_dtype=torch.float16,")
+    guideline_parts.append("    bnb_4bit_use_double_quant=True,")
+    guideline_parts.append(")")
+    guideline_parts.append("")
+    guideline_parts.append(f"model = AutoModelForCausalLM.from_pretrained(")
+    guideline_parts.append(f"    \"{model_id}\",")
+    guideline_parts.append("    quantization_config=bnb_config,")
+    guideline_parts.append("    device_map=\"auto\"")
+    guideline_parts.append(")")
+    guideline_parts.append("```")
+    
+    guideline_parts.append("\n### Flash Attention")
+    guideline_parts.append("```python")
+    guideline_parts.append("# 启用Flash Attention加速")
+    guideline_parts.append("model.config._attn_implementation = \"flash_attention_2\"")
+    guideline_parts.append("```")
+    
+    # 8. 常见问题
+    guideline_parts.append("\n## ❓ 常见问题")
+    guideline_parts.append("### 内存不足")
+    guideline_parts.append("- 使用量化技术 (4-bit/8-bit)")
+    guideline_parts.append("- 启用梯度检查点 (gradient_checkpointing)")
+    guideline_parts.append("- 减少batch_size")
+    guideline_parts.append("- 使用模型并行")
+    
+    guideline_parts.append("\n### 推理速度慢")
+    guideline_parts.append("- 启用Flash Attention")
+    guideline_parts.append("- 使用Tensor Parallelism")
+    guideline_parts.append("- 优化CUDA版本")
+    guideline_parts.append("- 使用更快的存储 (SSD)")
+    
+    guideline_parts.append("\n### 结果不理想")
+    guideline_parts.append("- 检查输入格式是否正确")
+    guideline_parts.append("- 调整温度参数 (temperature)")
+    guideline_parts.append("- 增加max_new_tokens")
+    guideline_parts.append("- 检查模型是否完整下载")
+    
+    # 9. 参考资源
+    guideline_parts.append("\n## 🔗 参考资源")
+    guideline_parts.append("- [HuggingFace Transformers文档](https://huggingface.co/docs/transformers/)")
+    guideline_parts.append("- [PEFT库文档](https://huggingface.co/docs/peft/)")
+    guideline_parts.append("- [bitsandbytes文档](https://github.com/TimDettmers/bitsandbytes)")
+    guideline_parts.append("- [Flash Attention文档](https://github.com/HazyResearch/flash-attention)")
+    guideline_parts.append("- [模型原始论文](https://arxiv.org/)")
+    
+    return "\n".join(guideline_parts)
 
 
 # 手动更新所有数据

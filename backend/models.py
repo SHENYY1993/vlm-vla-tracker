@@ -27,6 +27,7 @@ class Project(BaseModel):
     category: str  # VLM, VLA
     updated_at: Optional[str] = None
     created_at: datetime = datetime.now()
+    guideline: Optional[str] = None  # 新增：项目复现指南
 
 
 class News(BaseModel):

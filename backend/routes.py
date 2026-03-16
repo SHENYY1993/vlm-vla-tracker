@@ -70,6 +70,15 @@ async def get_projects(db):
     return [serialize_doc(p) for p in projects]
 
 
+@router.get("/projects/{project_id}")
+async def get_project_by_id(project_id: str, db):
+    """根据ID获取单个项目"""
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if project:
+        return serialize_doc(project)
+    raise HTTPException(status_code=404, detail="Project not found")
+
+
 @router.post("/projects/refresh")
 async def refresh_projects(db):
     """手动刷新项目数据"""
@@ -91,7 +100,7 @@ async def refresh_projects(db):
     if unique_projects:
         projects_data = []
         for p in unique_projects:
-            projects_data.append({
+            project_data = {
                 "name": p.name,
                 "description": p.description,
                 "url": p.url,
@@ -101,7 +110,11 @@ async def refresh_projects(db):
                 "category": p.category,
                 "updated_at": p.updated_at,
                 "created_at": p.created_at
-            })
+            }
+            # 添加复现指南（如果存在）
+            if hasattr(p, 'guideline') and p.guideline:
+                project_data["guideline"] = p.guideline
+            projects_data.append(project_data)
         await db.projects.insert_many(projects_data)
     
     return {"message": f"刷新成功，获取 {len(unique_projects)} 个项目", "count": len(unique_projects)}
@@ -196,7 +209,7 @@ async def refresh_all(db):
     if unique_projects:
         projects_data = []
         for p in unique_projects:
-            projects_data.append({
+            project_data = {
                 "name": p.name,
                 "description": p.description,
                 "url": p.url,
@@ -206,7 +219,11 @@ async def refresh_all(db):
                 "category": p.category,
                 "updated_at": p.updated_at,
                 "created_at": p.created_at
-            })
+            }
+            # 添加复现指南（如果存在）
+            if hasattr(p, 'guideline') and p.guideline:
+                project_data["guideline"] = p.guideline
+            projects_data.append(project_data)
         await db.projects.insert_many(projects_data)
     
     return {

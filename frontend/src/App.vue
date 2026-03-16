@@ -110,15 +110,27 @@
                     </span>
                   </div>
                 </template>
-                <h3 class="item-title">
-                  <a :href="project.url" target="_blank">{{ project.name }}</a>
-                </h3>
-                <p class="item-owner">by {{ project.owner }}</p>
-                <p class="item-description">{{ project.description || '暂无简介' }}</p>
-                <div class="card-footer">
-                  <el-tag v-if="project.language" size="small" type="info">{{ project.language }}</el-tag>
-                  <el-tag v-if="project.source" size="small">{{ project.source }}</el-tag>
-                </div>
+                <el-tabs v-model="project.activeTab" type="border-card">
+                  <el-tab-pane label="项目信息" name="info">
+                    <h3 class="item-title">
+                      <a :href="project.url" target="_blank">{{ project.name }}</a>
+                    </h3>
+                    <p class="item-owner">by {{ project.owner }}</p>
+                    <p class="item-description">{{ project.description || '暂无简介' }}</p>
+                    <div class="card-footer">
+                      <el-tag v-if="project.language" size="small" type="info">{{ project.language }}</el-tag>
+                      <el-tag v-if="project.source" size="small">{{ project.source }}</el-tag>
+                    </div>
+                  </el-tab-pane>
+                  <el-tab-pane label="复现指南" name="guideline" v-if="project.guideline">
+                    <div class="guideline-content">
+                      <div v-html="renderMarkdown(project.guideline)"></div>
+                    </div>
+                  </el-tab-pane>
+                  <el-tab-pane label="复现指南" name="guideline" v-else>
+                    <el-empty description="暂无复现指南"></el-empty>
+                  </el-tab-pane>
+                </el-tabs>
               </el-card>
               <el-empty v-if="filteredProjects.length === 0" description="暂无项目数据"></el-empty>
             </div>
@@ -166,9 +178,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { marked } from 'marked'
 
 const API_BASE = '/api'
 
@@ -185,6 +198,15 @@ const refreshing = ref(false)
 const loadingPapers = ref(false)
 const loadingProjects = ref(false)
 const loadingNews = ref(false)
+
+// 为每个项目添加activeTab状态
+const initProjectTabs = () => {
+  projects.value.forEach(project => {
+    if (!project.activeTab) {
+      project.activeTab = 'info'
+    }
+  })
+}
 
 // 过滤
 const filteredPapers = computed(() => {
@@ -274,6 +296,15 @@ async function refreshAll() {
 onMounted(() => {
   fetchAll()
 })
+
+// 监听项目数据变化，初始化标签页状态
+watch(projects, initProjectTabs, { immediate: true })
+
+// 渲染Markdown内容
+const renderMarkdown = (content) => {
+  if (!content) return ''
+  return marked(content)
+}
 </script>
 
 <style>
@@ -355,7 +386,7 @@ body {
 
 .card-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(800px, 1fr));
   gap: 20px;
 }
 
@@ -410,5 +441,67 @@ body {
 .card-footer {
   display: flex;
   gap: 10px;
+}
+
+/* 复现指南样式 */
+.guideline-content {
+  padding: 15px;
+  background: #fafafa;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.guideline-content h2 {
+  color: #333;
+  margin: 20px 0 10px 0;
+  font-size: 18px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 5px;
+}
+
+.guideline-content h3 {
+  color: #555;
+  margin: 15px 0 8px 0;
+  font-size: 16px;
+}
+
+.guideline-content p {
+  color: #666;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.guideline-content ul {
+  color: #666;
+  margin-left: 20px;
+  margin-bottom: 10px;
+}
+
+.guideline-content code {
+  background: #e8e8e8;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.guideline-content pre {
+  background: #f0f0f0;
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.guideline-content a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.guideline-content a:hover {
+  text-decoration: underline;
 }
 </style>
